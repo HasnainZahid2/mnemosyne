@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="640" viewBox="0 0 900 640" font-family="Segoe UI, system-ui, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#8b949e"/>
+    </marker>
+    <style>
+      .box{rx:10;ry:10;stroke-width:1.5;}
+      .lbl{font-size:13px;fill:#e6edf3;font-weight:600;}
+      .sub{font-size:11px;fill:#8b949e;}
+      .edge{stroke:#8b949e;stroke-width:1.5;fill:none;marker-end:url(#arrow);}
+      .cloud{font-size:11px;fill:#d29922;font-weight:600;}
+      .title{font-size:18px;fill:#e6edf3;font-weight:700;}
+    </style>
+  </defs>
+
+  <rect width="900" height="640" fill="#0d1117"/>
+  <text x="30" y="38" class="title">Mnemosyne — MemoryAgent Architecture</text>
+  <text x="30" y="58" class="sub">Track 1 · persistent memory across sessions · built on Qwen Cloud / Alibaba Cloud</text>
+
+  <!-- Frontend -->
+  <rect class="box" x="30" y="85" width="840" height="70" fill="#161b22" stroke="#58a6ff"/>
+  <text x="50" y="115" class="lbl">Frontend — Chat UI + Live Memory Inspector</text>
+  <text x="50" y="135" class="sub">React (single-file). Shows memories being created / recalled / superseded / decayed in real time.</text>
+
+  <!-- arrow FE->BE -->
+  <line class="edge" x1="450" y1="155" x2="450" y2="185"/>
+  <text x="460" y="175" class="sub">REST (/chat, /memories, /reset, /decay)</text>
+
+  <!-- Backend container -->
+  <rect class="box" x="30" y="185" width="840" height="300" fill="#11161d" stroke="#30363d"/>
+  <text x="50" y="210" class="lbl">FastAPI Backend  ·  deployed on Alibaba Cloud ECS</text>
+  <text x="50" y="228" class="cloud">▲ Alibaba Cloud</text>
+
+  <!-- Agent orchestrator -->
+  <rect class="box" x="55" y="245" width="220" height="210" fill="#161b22" stroke="#3fb950"/>
+  <text x="70" y="270" class="lbl">Agent Orchestrator</text>
+  <text x="70" y="292" class="sub">1. retrieve context</text>
+  <text x="70" y="310" class="sub">2. Qwen reply</text>
+  <text x="70" y="328" class="sub">3. encode new memories</text>
+
+  <!-- Memory Lifecycle Engine -->
+  <rect class="box" x="300" y="245" width="300" height="210" fill="#161b22" stroke="#58a6ff"/>
+  <text x="318" y="270" class="lbl">Memory Lifecycle Engine</text>
+  <text x="318" y="294" class="sub">ENCODE — Qwen extracts typed memories</text>
+  <text x="318" y="314" class="sub">RETRIEVE — multi-signal rank + token budget</text>
+  <text x="318" y="334" class="sub">RECONCILE — supersede contradictions</text>
+  <text x="318" y="354" class="sub">CONSOLIDATE — merge duplicates</text>
+  <text x="318" y="374" class="sub">DECAY — forget stale, low-salience memory</text>
+  <text x="318" y="408" class="sub" font-style="italic">signals: semantic · recency · salience · frequency</text>
+
+  <!-- Stores -->
+  <rect class="box" x="625" y="245" width="220" height="95" fill="#161b22" stroke="#30363d"/>
+  <text x="642" y="270" class="lbl">Memory Store</text>
+  <text x="642" y="292" class="sub">vector + structured fields</text>
+  <text x="642" y="310" class="sub">local JSON · in-process</text>
+
+  <rect class="box" x="625" y="360" width="220" height="95" fill="#161b22" stroke="#d29922"/>
+  <text x="642" y="385" class="lbl">Alibaba Cloud OSS</text>
+  <text x="642" y="407" class="cloud">▲ Alibaba Cloud</text>
+  <text x="642" y="425" class="sub">memory snapshot persistence</text>
+  <text x="642" y="443" class="sub">(oss2 SDK — deploy proof)</text>
+
+  <!-- internal edges -->
+  <line class="edge" x1="275" y1="350" x2="300" y2="350"/>
+  <line class="edge" x1="600" y1="300" x2="625" y2="293"/>
+  <line class="edge" x1="600" y1="380" x2="625" y2="400"/>
+
+  <!-- Qwen Cloud -->
+  <rect class="box" x="300" y="520" width="300" height="85" fill="#161b22" stroke="#d29922"/>
+  <text x="320" y="548" class="lbl">Qwen Cloud  (DashScope, OpenAI-compatible)</text>
+  <text x="320" y="570" class="cloud">▲ Alibaba Cloud</text>
+  <text x="320" y="588" class="sub">qwen-plus (chat + extraction + conflict judge) · text-embedding-v3 (1024-d)</text>
+
+  <!-- engine <-> qwen -->
+  <line class="edge" x1="450" y1="485" x2="450" y2="520"/>
+  <line class="edge" x1="430" y1="520" x2="430" y2="485"/>
+  <text x="460" y="508" class="sub">LLM + embeddings</text>
+</svg>

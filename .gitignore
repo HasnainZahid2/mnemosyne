@@ -1,0 +1,29 @@
+# Secrets — NEVER commit
+.env
+*.env
+!.env.example
+backend/.env
+**/credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Local data / memory snapshots
+backend/data/
+*.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

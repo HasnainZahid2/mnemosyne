@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mnemosyne — MemoryAgent</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d; --text: #e6edf3;
+    --muted: #8b949e; --accent: #58a6ff; --green: #3fb950; --amber: #d29922;
+    --red: #f85149; --chip: #21262d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+         background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+  #root { height: 100vh; }
+  .app { display: grid; grid-template-columns: 1fr 420px; height: 100vh; }
+  .col { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  .chat-col { border-right: 1px solid var(--border); }
+  .header { padding: 16px 20px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 17px; margin: 0; }
+  .header .sub { font-size: 12px; color: var(--muted); }
+  .reset-btn { background: var(--chip); color: var(--text); border: 1px solid var(--border);
+               padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  .reset-btn:hover { border-color: var(--red); color: var(--red); }
+  .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex;
+              flex-direction: column; gap: 14px; }
+  .msg { max-width: 78%; padding: 11px 15px; border-radius: 14px; line-height: 1.45;
+         font-size: 14px; white-space: pre-wrap; }
+  .msg.user { align-self: flex-end; background: var(--accent); color: #fff;
+              border-bottom-right-radius: 4px; }
+  .msg.bot { align-self: flex-start; background: var(--panel);
+             border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .msg .meta { font-size: 11px; color: var(--muted); margin-top: 7px; }
+  .inputbar { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+  .inputbar input { flex: 1; background: var(--panel); border: 1px solid var(--border);
+                    border-radius: 8px; padding: 11px 14px; color: var(--text); font-size: 14px; }
+  .inputbar input:focus { outline: none; border-color: var(--accent); }
+  .inputbar button { background: var(--accent); color: #fff; border: none; border-radius: 8px;
+                     padding: 0 20px; font-weight: 600; cursor: pointer; font-size: 14px; }
+  .inputbar button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .mem-header { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .mem-header h2 { font-size: 14px; margin: 0 0 3px; }
+  .mem-header .count { font-size: 12px; color: var(--muted); }
+  .mem-list { flex: 1; overflow-y: auto; padding: 14px; display: flex;
+              flex-direction: column; gap: 10px; }
+  .mem { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--muted);
+         border-radius: 8px; padding: 11px 13px; transition: all 0.25s; }
+  .mem.active { border-left-color: var(--green); }
+  .mem.superseded { border-left-color: var(--red); opacity: 0.6; }
+  .mem.superseded .mem-content { text-decoration: line-through; }
+  .mem.archived { border-left-color: var(--amber); opacity: 0.5; }
+  .mem.flash { box-shadow: 0 0 0 2px var(--accent); transform: scale(1.015); }
+  .mem-content { font-size: 13px; line-height: 1.4; margin-bottom: 8px; }
+  .mem-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: var(--chip);
+         color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .tag.type { color: var(--accent); }
+  .tag.status-active { color: var(--green); }
+  .tag.status-superseded { color: var(--red); }
+  .tag.status-archived { color: var(--amber); }
+  .sal-bar { height: 4px; background: var(--chip); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .sal-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); }
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 20px; }
+  .legend { padding: 10px 20px; border-top: 1px solid var(--border); font-size: 11px;
+            color: var(--muted); display: flex; gap: 14px; }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+const API = "http://localhost:8000";
+
+function App() {
+  const [messages, setMessages] = useState([
+    { role: "bot", text: "Hi — I'm Mnemosyne. Tell me about yourself and I'll remember it across every session. Try: \"I live in New York and prefer short answers,\" then in effect a new chat ask \"where do I live?\"" }
+  ]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [memories, setMemories] = useState([]);
+  const [flashIds, setFlashIds] = useState(new Set());
+  const messagesEnd = useRef(null);
+
+  const loadMemories = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/memories`);
+      const d = await r.json();
+      setMemories(d.memories || []);
+    } catch (e) { /* backend not up yet */ }
+  }, []);
+
+  useEffect(() => { loadMemories(); }, [loadMemories]);
+  useEffect(() => { messagesEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const flash = (ids) => {
+    setFlashIds(new Set(ids));
+    setTimeout(() => setFlashIds(new Set()), 1400);
+  };
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || busy) return;
+    setInput("");
+    setMessages(m => [...m, { role: "user", text }]);
+    setBusy(true);
+    try {
+      const r = await fetch(`${API}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, session_id: "web" })
+      });
+      const d = await r.json();
+      const recalled = (d.recalled || []).length;
+      const created = (d.new_memories || []).length;
+      const meta = [
+        recalled ? `recalled ${recalled}` : null,
+        created ? `learned ${created}` : null,
+        d.tokens_used ? `${d.tokens_used} ctx tokens` : null,
+      ].filter(Boolean).join(" · ");
+      setMessages(m => [...m, { role: "bot", text: d.reply, meta }]);
+      await loadMemories();
+      flash([...(d.recalled || []), ...(d.new_memories || [])].map(x => x.id));
+    } catch (e) {
+      setMessages(m => [...m, { role: "bot", text: "⚠️ Couldn't reach the backend. Is uvicorn running on :8000?" }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reset = async () => {
+    await fetch(`${API}/reset`, { method: "POST" });
+    setMemories([]);
+    setMessages([{ role: "bot", text: "Memory wiped. Fresh start — tell me something to remember." }]);
+  };
+
+  return (
+    <div className="app">
+      <div className="col chat-col">
+        <div className="header">
+          <div>
+            <h1>🧠 Mnemosyne</h1>
+            <div className="sub">MemoryAgent · persistent memory across sessions · Qwen Cloud</div>
+          </div>
+        </div>
+        <div className="messages">
+          {messages.map((m, i) => (
+            <div key={i} className={`msg ${m.role}`}>
+              {m.text}
+              {m.meta && <div className="meta">{m.meta}</div>}
+            </div>
+          ))}
+          <div ref={messagesEnd} />
+        </div>
+        <div className="inputbar">
+          <input
+            value={input}
+            placeholder="Say something it should remember…"
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && send()}
+            disabled={busy}
+          />
+          <button onClick={send} disabled={busy}>{busy ? "…" : "Send"}</button>
+        </div>
+      </div>
+
+      <div className="col">
+        <div className="mem-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2>Memory Inspector</h2>
+            <div className="count">{memories.length} memories · live</div>
+          </div>
+          <button className="reset-btn" onClick={reset}>Reset</button>
+        </div>
+        <div className="mem-list">
+          {memories.length === 0 && <div className="empty">No memories yet. Start chatting — they'll appear here as they form.</div>}
+          {memories.map(m => (
+            <div key={m.id} className={`mem ${m.status} ${flashIds.has(m.id) ? "flash" : ""}`}>
+              <div className="mem-content">{m.content}</div>
+              <div className="mem-tags">
+                <span className="tag type">{m.type}</span>
+                <span className={`tag status-${m.status}`}>{m.status}</span>
+                {m.entities && m.entities.map((e, i) => <span key={i} className="tag">{e}</span>)}
+                {m.access_count > 0 && <span className="tag">recalled ×{m.access_count}</span>}
+              </div>
+              <div className="sal-bar"><div className="sal-fill" style={{ width: `${Math.round(m.salience * 100)}%` }} /></div>
+            </div>
+          ))}
+        </div>
+        <div className="legend">
+          <span><span className="dot" style={{ background: "var(--green)" }}></span>active</span>
+          <span><span className="dot" style={{ background: "var(--red)" }}></span>superseded</span>
+          <span><span className="dot" style={{ background: "var(--amber)" }}></span>archived</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
